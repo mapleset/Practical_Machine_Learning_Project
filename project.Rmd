@@ -5,13 +5,12 @@ date: "October 21, 2015"
 output: html_document
 ---
 ##Synopsis
-Using wearable fitness trackers, enthusiasts and athletes can collect data about their personal fitness activity. They use the measurements to improve their health and find patterns in their activity. They are typically insterested in tracking how much of a particular activity they do, but not in whether it is done properly or improperly.  In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise. The subjects were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+Using wearable fitness trackers, enthusiasts and athletes can collect data about their personal fitness activity. They use the measurements to improve their health and find patterns in their activity. They are typically interested in tracking how much of a particular activity they do, but not in whether it is done properly or improperly.  In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise.  This is the 'classe' variable. The subjects were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
 
 
 ```{r,message=FALSE}
 library(caret)
 library(randomForest)
-library(corrplot)
 ```
 
 ##Data Processing
@@ -73,7 +72,7 @@ set.seed(3433)
 modelFit <- randomForest(classe ~ .,data = trainingSet,importance = TRUE,ntrees = 100)
 ```
 
-We will need to see the OOB estimate of error rate, which has been determined to be 0.68% .
+We will need to see the OOB estimate of error rate, which has been determined to be approximately 0.6 % .
 ```{r}
 print(modelFit)
 #plot(modelFit)
@@ -90,7 +89,7 @@ We will now test the accuracy of the model using the cross-validation set.  This
 cvSetPC <- predict(modelFit, cvSet) 
 table(cvSet$classe, cvSetPC)
 ```
-By viewing the confusion matrix, we can see a number of statistics about the model's prediction value on the cross-validation data set.  It is showing us the model's accuracy for the CV set as 99.24% .
+By viewing the confusion matrix, we can see a number of statistics about the model's prediction value on the cross-validation data set.  It is showing us the model's accuracy for the CV set as 99+ % .
 ```{r}
 confusionMatrix(cvSet$classe, cvSetPC)
 ```
@@ -115,7 +114,7 @@ pml_write_files = function(x)
   }
 }
 ```
-Write out the answers to files for submission
+Write out the answers to files for submission.
 ```{r}
 #answers <- as.vector(testPC)
 #setwd("Answers")
