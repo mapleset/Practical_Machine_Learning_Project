@@ -1,0 +1,125 @@
+---
+title: "Machine Learning Project"
+author: "mapleset"
+date: "October 21, 2015"
+output: html_document
+---
+##Synopsis
+Using wearable fitness trackers, enthusiasts and athletes can collect data about their personal fitness activity. They use the measurements to improve their health and find patterns in their activity. They are typically insterested in tracking how much of a particular activity they do, but not in whether it is done properly or improperly.  In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise. The subjects were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+
+```{r,message=FALSE}
+library(caret)
+library(randomForest)
+library(corrplot)
+```
+
+##Data Processing
+Load the training and test sets.
+```{r}
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+```
+
+Partition the training data into 2 parts, a 60% for a training set and 40% for a cross-validation set.
+```{r}
+inTrain <- createDataPartition(y = training$classe, p=0.60)[[1]]
+trainingSet_ <- training[inTrain,]
+cvSet <- training[-inTrain,]
+dim(trainingSet_)
+dim(cvSet)
+```
+
+We now want to determine which variables of the training set are of little value or have a high correlation to other variables and eliminate these columns from the training and cross-validation sets.  We will eliminate columns with Near Zero Variation, as well as columns that are mostly NA.  We also will use a Correlation Matrix to find columns to remove in order to reduce pair-wise correlations.
+
+```{r}
+# eliminate the first 7 columns as they provide no valuable information for prediction
+cols_ <- c(8:160)
+
+# check for near-zero-variability
+nzvCols <- nearZeroVar(trainingSet_)
+# keep only columns not in the NZV set
+cols__ <- cols_[! cols_ %in% nzvCols]
+
+# find columns that are mostly NA
+manyNACols <- (colSums(is.na(trainingSet_)) > 1000) # if the column contains > 1000 NA's
+manyNACols_names <- names(manyNACols[manyNACols==1])
+manyNAColIndexes <- which(names(trainingSet_) %in% manyNACols_names)
+
+# keep only columns not in the 'mostly NA' set
+cols <- cols__[! cols__ %in% manyNAColIndexes]
+
+# create subsets that don't have NZV or mostly NA values
+trainingSet__ <- trainingSet_[,cols]
+
+# find the index for the classe column
+class_col <- which(colnames(trainingSet__)=="classe")
+
+# create a correlation matrix to reduce/eliminate overfitting
+M <- cor(trainingSet__[,-class_col])
+diag(M) <- 0
+
+# findCorrelation searches through the correlation matrix and returns a vector of integers corresponding to columns to remove in order for us to reduce pair-wise correlations.
+reduceCols <- findCorrelation(M, cutoff = .9)
+trainingSet <- trainingSet__[,-reduceCols]
+class_col <- which(colnames(trainingSet)=="classe") # recalc after reduction
+
+```
+
+##Model Building
+After pre-processing the data, we now need to build a prediction model. The random forest algorithm was chosen because it builds a number of trees with bootstrapped sampling and uses the average of the predictions to form the final prediction.  Because, internally, it uses an approximate 60/40 split of the dataset for training and test (OOB/Out of Bag) data, it eliminates the need to supply separate training and test data data for model building.
+```{r}
+set.seed(3433)
+modelFit <- randomForest(classe ~ .,data = trainingSet,importance = TRUE,ntrees = 100)
+```
+
+We will need to see the OOB estimate of error rate, which has been determined to be 0.68% .
+```{r}
+print(modelFit)
+#plot(modelFit)
+```
+
+Plot the importance of variables (MeanDecreaseAccuracy vs variable name).  We see that 'yaw_belt' is the most important for determining accuracy.
+```{r}
+varImpPlot(modelFit,cex=.5)  
+```
+
+##Cross Validation
+We will now test the accuracy of the model using the cross-validation set.  This is important to ensure we don't have overfitting ot the model.
+```{r}
+cvSetPC <- predict(modelFit, cvSet) 
+table(cvSet$classe, cvSetPC)
+```
+By viewing the confusion matrix, we can see a number of statistics about the model's prediction value on the cross-validation data set.  It is showing us the model's accuracy for the CV set as 99.24% .
+```{r}
+confusionMatrix(cvSet$classe, cvSetPC)
+```
+
+##Prediction
+And finally, predict the 'classe' of each of the 20 rows of the testing data.  This resulted in a 20 out of 20 accuracy when the data was submitted for automated testing.
+```{r}
+testPC <- predict(modelFit, testing) 
+summary(testPC)
+testPC
+```
+
+Define a function to write the files needed for submission
+```{r}
+pml_write_files = function(x)
+{
+  n = length(x)
+  for(i in 1:n)
+  {
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+```
+Write out the answers to files for submission
+```{r}
+#answers <- as.vector(testPC)
+#setwd("Answers")
+#pml_write_files(testPC)
+#setwd("..")
+```
+
